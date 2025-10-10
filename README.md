@@ -1,6 +1,6 @@
 # Pogly interactive widget template
 
-This is a barebone template to create interactive widgets for Pogly utilizing TMI.js and React. You can find all logic in [App.tsx](https://github.com/PoglyApp/pogly-interactive-widget-template/blob/main/src/App.tsx).
+This is a barebone template to create interactive widgets for Pogly utilizing React, TMI.js and custom KICK chat listener.
 
 ## Noteable things
 
@@ -19,5 +19,5 @@ The project url is by default `../example/?channel=`. You need to edit `vite.con
 # Widget code template
 
 ```
-{"widgetName":"Widget example","widgetWidth":650,"widgetHeight":800,"headerTag":"","bodyTag":"<iframe src=\"{widget_url}\" allowtransparency=\"true\"></iframe>","styleTag":"* {\n            margin: 0;\n            padding: 0;\n            border: 0;\n            overflow: hidden!important;\n        }\n        html, body {\n            width: 100%;\n            height: 100%;\n            overflow: hidden!important;\n            background-color: rgba(0,0,0,0);\n        }\n        iframe {\n            width: 100%;\n            height: 100%;\n            border: none;\n            overflow: hidden!important;\n            display: block;\n            background-color: rgba(0,0,0,0);\n        }","scriptTag":"","variables":[{"variableName":"channel","variableType":1,"variableValue":"bobross"},{"variableName":"widget_url","variableType":1,"variableValue":"http://localhost:5173/example/?channel={channel}"}]}
+{"widgetName":"Widget example","widgetWidth":650,"widgetHeight":800,"headerTag":"","bodyTag":"<iframe src=\"{widget_url}\" allowtransparency=\"true\"></iframe>","styleTag":"* {\n            margin: 0;\n            padding: 0;\n            border: 0;\n            overflow: hidden!important;\n        }\n        html, body {\n            width: 100%;\n            height: 100%;\n            overflow: hidden!important;\n            background-color: rgba(0,0,0,0);\n        }\n        iframe {\n            width: 100%;\n            height: 100%;\n            border: none;\n            overflow: hidden!important;\n            display: block;\n            background-color: rgba(0,0,0,0);\n        }","scriptTag":"","variables":[{"variableName":"channel","variableType":1,"variableValue":"bobross"},{"variableName":"is_kick_channel","variableType":2,"variableValue":false},{"variableName":"widget_url","variableType":1,"variableValue":"http://localhost:5173/example/?channel={channel}&kick={is_kick_channel}"}]}
 ```
