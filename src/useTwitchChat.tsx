@@ -1,15 +1,14 @@
 import * as tmi from "tmi.js";
 import { useEffect, useRef } from "react";
-import { cleanTwitchMessage } from "./utility";
 
-const useTwitchChat = (channel: string, setMessage: Function) => {
+const useTwitchChat = (channel: string, revealWord: Function, isOverlay: boolean) => {
   const initialized = useRef<boolean>(false);
 
   const urlParams = new URLSearchParams(window.location.search);
-  const IS_KICK_STREAM = urlParams.get("kick");
+  const IS_KICK_STREAM = urlParams.get("kick") === "true";
 
   useEffect(() => {
-    if (initialized.current || !channel || IS_KICK_STREAM) return;
+    if (initialized.current || !channel || IS_KICK_STREAM || !isOverlay) return;
     initialized.current = true;
 
     const twitchChannel: string = channel.toLowerCase();
@@ -31,11 +30,10 @@ const useTwitchChat = (channel: string, setMessage: Function) => {
       console.log("Connected to twitch chat!");
     });
 
-    twitchClient.on("message", (_channel: string, tags: tmi.ChatUserstate, msg: string) => {
-      if (!tags.username || !msg) return;
-      const message = cleanTwitchMessage(msg);
+    twitchClient.on("message", (_channel: string, tags: tmi.ChatUserstate, message: string) => {
+      if (!tags.username || !message) return;
 
-      setMessage(message);
+      revealWord(message, tags.username);
     });
   }, []);
 };

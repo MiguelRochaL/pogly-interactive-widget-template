@@ -1,5 +1,206 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body {
+  font-family: Arial, sans-serif;
+  background-color: transparent;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: clamp(4px, 1.5vmin, 8px);
+}
+
+:root {
+  --cell: clamp(40px, 6vmin, 80px);
+  --gap: clamp(8px, 2vmin, 18px);
+  --pad: clamp(12px, 3vmin, 32px);
+  --title: clamp(18px, 3.2vmin, 40px);
+  --num: clamp(10px, 2vmin, 22px);
+  --letter: clamp(20px, 3vmin, 38px);
+  --hintHeading: clamp(12px, 2vmin, 18px);
+  --hintNum: clamp(10px, 2vmin, 20px);
+  --hintText: clamp(12px, 1.8vmin, 18px);
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  text-align: center;
+}
+
+.game-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  height: 100%;
+  padding: var(--pad);
+  border-radius: 10px;
+}
+
+.game-content {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: calc(var(--gap) * 2);
+  flex-wrap: wrap;
+  max-width: 1600px;
+  width: 100%;
+}
+
+.game-title {
+  font-size: var(--title);
+  font-weight: 700;
+  color: #9147ff;
+  text-transform: uppercase;
+  text-shadow: 0px 0px 10px rgba(145, 71, 255, 0.8);
+  text-align: center;
+
+  border-radius: 10px;
+}
+
+.crossword-grid {
+  display: inline-block;
+  border: 2px solid #333;
+  background-color: #333;
+  font-family: monospace;
+  max-width: 100%;
+}
+
+.crossword-row {
+  display: flex;
+}
+
+.crossword-cell {
+  position: relative;
+  width: var(--cell);
+  height: var(--cell);
+  border: 1px solid rgba(145, 71, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  user-select: none;
+}
+
+.crossword-cell.filled {
+  background-color: rgba(145, 71, 255, 0.06);
+  color: #000;
+}
+
+.crossword-cell.empty {
+  background-color: #18181b85;
+}
+
+.crossword-cell.whitespace {
+  background-color: #4a4355;
+}
+
+.crossword-number {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-size: var(--num);
+  font-weight: normal;
+  color: #c4b5fd;
+}
+
+.crossword-letter {
+  display: inline-block;
+  color: #ffffff;
+  font-size: var(--letter);
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.hints-panel {
+  width: min(100%, 480px);
+  padding: 1.25rem;
+  padding-right: 0;
+  text-align: start;
+  flex: 1 1 320px;
+}
+
+.hints-sections {
+  display: grid;
+  gap: 1rem;
+}
+
+.hints-section {
+  border: 1px solid rgba(145, 71, 255, 0.25);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  background: #252526;
+}
+
+.hints-heading {
+  margin: 0 0 0.75rem;
+  font-size: var(--hintHeading);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+  text-align: center;
+}
+
+.hint-list {
+  list-style: none;
   margin: 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  color: #e5e7eb;
+  line-height: 1.4;
+}
+
+.hint-num {
+  color: #a78bfa;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  width: 1.5rem;
+  font-size: var(--hintNum);
+  text-align: right;
+  margin-top: 0.05rem;
+}
+
+.hint-text {
+  flex: 1;
+  font-size: var(--hintText);
+  font-family: Arial, sans-serif;
+  color: #e5e7eb;
+  align-self: center;
+}
+
+.hint-text.crossed {
+  text-decoration: line-through;
+  text-decoration-color: #9147ff;
+  text-decoration-thickness: 3px;
+}
+
+@media (max-height: 900px) {
+  :root {
+    --cell: clamp(44px, 7vmin, 84px);
+    --letter: clamp(22px, 3.5vmin, 40px);
+  }
+}
+
+@media (max-width: 640px) {
+  .game-container {
+    padding: calc(var(--pad) * 0.6);
+  }
+  .hints-panel {
+    width: 100%;
+    padding-right: 0;
+  }
 }

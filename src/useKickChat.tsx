@@ -1,18 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { cleanKickMessage } from "./utility";
 
 const WS_URL = "wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0-rc2&flash=false";
 
-export default function useKickChat(channel: string, setMessage: Function) {
+export default function useKickChat(channel: string, revealWord: Function, isOverlay: boolean) {
   const [connected, setConnected] = useState(false);
   const initialized = useRef<boolean>(false);
   const wsRef = useRef<WebSocket | null>(null);
 
   const urlParams = new URLSearchParams(window.location.search);
-  const IS_KICK_STREAM = urlParams.get("kick");
+  const IS_KICK_STREAM = urlParams.get("kick") === "true";
 
   useEffect(() => {
-    if (connected || initialized.current || !IS_KICK_STREAM) return;
+    if (connected || initialized.current || !IS_KICK_STREAM || !isOverlay) return;
 
     initialized.current = true;
 
@@ -45,9 +44,9 @@ export default function useKickChat(channel: string, setMessage: Function) {
           const messageData = JSON.parse(parsed.data);
 
           const sender = messageData.sender.username;
-          const message = cleanKickMessage(messageData.content);
+          const message = messageData.content;
 
-          setMessage(message);
+          revealWord(message, sender);
         } catch {
           // Do nothing
         }

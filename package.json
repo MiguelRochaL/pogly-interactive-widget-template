@@ -1,5 +1,5 @@
 {
-  "name": "pogly-interactive-overlay-template",
+  "name": "pogly-crossword-widget",
   "private": false,
   "version": "0.0.0",
   "type": "module",
@@ -8,6 +8,9 @@
     "build": "tsc -b && vite build"
   },
   "dependencies": {
+    "@native-systems/react-crossword": "^5.3.0",
+    "crossword-generator": "^1.0.1",
+    "crossword-layout-generator": "^0.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tmi.js": "^1.8.5"
