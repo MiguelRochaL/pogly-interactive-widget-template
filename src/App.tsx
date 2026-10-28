@@ -4,7 +4,7 @@ import useTwitchChat from "./useTwitchChat";
 
 const VOTING_SECONDS = 15;
 
-// Troque estas URLs quando tiver suas imagens definitivas.
+// Imagens fixas
 const DOOR_IMAGE_URL =
   "https://f.feridinha.com/WbL3s.png";
 
@@ -16,8 +16,13 @@ type Phase = "idle" | "voting" | "reveal";
 function App() {
   const params = new URLSearchParams(window.location.search);
   const channel = params.get("channel");
-  const doorImage = params.get("doorImage") || DOOR_IMAGE_URL;
+
+  // Imagem das portas e personagens alteraveis
+  const door1Image = params.get("door1_image") || DOOR_IMAGE_URL;
+  const door2Image = params.get("door2_image") || DOOR_IMAGE_URL;
+  const door3Image = params.get("door3_image") || DOOR_IMAGE_URL;
   const characterImage = params.get("characterImage") || DEFAULT_LIAN_IMAGE_URL;
+  
   const isOverlay = params.get("overlay") === "true";
   const transparent = params.get("transparent") === "true";
 
@@ -172,7 +177,13 @@ function App() {
               }}
             >
               <img
-                src={doorImage}
+                src={
+                  door === 1
+                    ? door1Image
+                    : door === 2
+                    ? door2Image
+                    : door3Image
+                }
                 alt={`Porta ${door}`}
                 style={{
                   width: "100%",
