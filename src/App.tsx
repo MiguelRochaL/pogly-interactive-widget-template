@@ -1,277 +1,185 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+
+import { useEffect, useRef, useState } from "react";
 import useTwitchChat from "./useTwitchChat";
-import useKickChat from "./useKickChat";
-import CrosswordGrid from "./CrosswordGrid";
-import { Hint, HintSection } from "./CrosswordHints";
-import { useFetchWordList } from "./useFetchWordList";
-import { generateCrossword } from "crossword-generator";
+
+const VOTING_SECONDS = 15;
+
+type Phase = "idle" | "voting" | "reveal";
 
 function App() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const domainURL = window.location.origin + "/example/?channel=bobross";
+  const params = new URLSearchParams(window.location.search);
+  const channel = params.get("channel");
+  const isOverlay = params.get("overlay") === "true";
+  const transparent = params.get("transparent") === "true";
 
-  const CHANNEL_NAME = urlParams.get("channel");
-  const IS_OVERLAY = urlParams.get("overlay") === "true";
-  const TRANSPARENT = urlParams.get("transparent") === "true";
-  const CONSOLE_LOG_ASNWERS = urlParams.get("log") === "true";
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [seconds, setSeconds] = useState(VOTING_SECONDS);
+  const [catDoor, setCatDoor] = useState(0);
+  const [votes, setVotes] = useState([0, 0, 0]);
 
-  if (!CHANNEL_NAME) {
+  const voters = useRef(new Set<string>());
+  const active = useRef(false);
+
+  const chatHandler = useRef<
+    (message: string, username: string) => void
+  >(() => {});
+
+  const startGame = () => {
+    if (active.current) return;
+
+    voters.current = new Set();
+    setVotes([0, 0, 0]);
+    setCatDoor(Math.floor(Math.random() * 3) + 1);
+    setSeconds(VOTING_SECONDS);
+    active.current = true;
+    setPhase("voting");
+  };
+
+  chatHandler.current = (message, username) => {
+    const command = message.trim().toLowerCase();
+
+    if (command === "!joguinho") {
+      startGame();
+      return;
+    }
+
+    if (!active.current || phase !== "voting") return;
+
+    const match = command.match(/^!([123])$/);
+    if (!match) return;
+
+    const voter = username.toLowerCase();
+
+    if (voters.current.has(voter)) return;
+
+    voters.current.add(voter);
+
+    const door = Number(match[1]) - 1;
+
+    setVotes((oldVotes) =>
+      oldVotes.map((count, index) =>
+        index === door ? count + 1 : count
+      )
+    );
+  };
+
+  useTwitchChat(
+    channel || "",
+    (message: string, username: string) => {
+      chatHandler.current(message, username);
+    },
+    isOverlay
+  );
+
+  useEffect(() => {
+    if (!isOverlay || phase !== "voting") return;
+
+    if (seconds > 0) {
+      const timer = setTimeout(() => {
+        setSeconds((current) => current - 1);
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+
+    active.current = false;
+    setPhase("reveal");
+  }, [phase, seconds, isOverlay]);
+
+  if (!channel) {
     return (
-      <>
-        You need to put the twitch channel in the url! example: <a href={domainURL}>{domainURL}</a>!
-      </>
+      <div style={{ color: "white", padding: 20 }}>
+        Configure a URL com ?channel=SEUCANAL&overlay=true
+      </div>
     );
   }
 
-  const [revealedWords, setRevealedWords] = useState<Set<string>>(new Set());
-  const [initialized, setInitialized] = useState<boolean>(false);
-  const [generationFinished, setGenerationFinished] = useState<boolean>(false);
-  const [leaderboard, setLeaderboard] = useState<Map<string, number>>(new Map());
-  const [gameOver, setGameOver] = useState<boolean>(false);
-
-  const selectedWords = useRef<any>([]);
-
-  const [fetching, setFetching] = useState<boolean>(false);
-  const { data, loading, error } = useFetchWordList(fetching, setFetching, IS_OVERLAY);
-
-  useEffect(() => {
-    if (loading || initialized || generationFinished || !data || !IS_OVERLAY) return;
-
-    if (error) {
-      setTimeout(() => {
-        restart();
-      }, 10000);
-
-      return console.log("[ERROR]", error);
-    }
-
-    setInitialized(true);
-
-    const grid = generate();
-
-    if (grid.length < 5) {
-      console.log("Regenerating because grid was too small.");
-      return setInitialized(false);
-    }
-
-    if (gameOver) {
-      setTimeout(() => {
-        setRevealedWords(new Set());
-        setLeaderboard(new Map());
-        setGameOver(false);
-        selectedWords.current = grid;
-        setGenerationFinished(true);
-      }, 10000);
-    } else {
-      selectedWords.current = grid;
-      setGenerationFinished(true);
-    }
-  }, [initialized, data, loading, error]);
-
-  useEffect(() => {
-    if (!initialized) return;
-    if (revealedWords.size === selectedWords.current.length) restart();
-  }, [revealedWords]);
-
-  const generate = () => {
-    const shuffled = data.sort(() => Math.random() - 0.5);
-    const wordArray = shuffled.map((word: any) => word[2]);
-
-    let maxTries = 5;
-    let layout = null;
-
-    for (let i = 0; i < maxTries; i++) {
-      layout = generateCrossword(wordArray, {
-        maxGridSize: 12,
-        maxAttempts: 50,
-      });
-
-      const gridSize = getGridSize(layout.placedWords);
-
-      if (gridSize.width >= 10 && gridSize.height >= 10) break;
-    }
-
-    if (CONSOLE_LOG_ASNWERS)
-      layout!.placedWords.map((word: any, index: any) => console.log({ word: word.word, number: index + 1 }));
-
-    const clueMap = Object.fromEntries(shuffled.map(([, clueText, answer]: any) => [answer.toUpperCase(), clueText]));
-
-    const merged = layout!.placedWords.map((obj: any, index: any) => ({
-      ...obj,
-      clue: clueMap[obj.word.toUpperCase()] || null,
-      position: index + 1,
-    }));
-
-    return merged;
-  };
-
-  const getGridSize = (words: any) => {
-    const rows = words.flatMap((w: any) => [w.startRow, w.endRow]);
-    const cols = words.flatMap((w: any) => [w.startCol, w.endCol]);
-    return {
-      width: Math.max(...cols) - Math.min(...cols) + 1,
-      height: Math.max(...rows) - Math.min(...rows) + 1,
-    };
-  };
-
-  const revealWord = (guess: string, guesser: string) => {
-    const match = selectedWords.current.find((w: any) => w.word.toLowerCase() === guess.toLowerCase());
-
-    if (match && !revealedWords.has(match.word)) {
-      setRevealedWords((prev) => new Set(prev).add(match.word));
-
-      const hintText = document.getElementById(match.position + "_hint-text");
-
-      if (hintText) hintText.classList.add("crossed");
-
-      setLeaderboard((prev) => {
-        const next = new Map(prev);
-        const key = guesser.trim();
-        next.set(key, (next.get(key) ?? 0) + 1);
-        return next;
-      });
-    }
-  };
-
-  const restart = () => {
-    setGameOver(true);
-    setFetching(false);
-    setInitialized(false);
-    setGenerationFinished(false);
-  };
-
-  const sortedLeaderboard = useMemo(() => [...leaderboard.entries()].sort((a, b) => b[1] - a[1]), [leaderboard]);
-
-  useTwitchChat(CHANNEL_NAME, revealWord, IS_OVERLAY);
-  useKickChat(CHANNEL_NAME, revealWord, IS_OVERLAY);
+  if (!isOverlay) {
+    return (
+      <div style={{ color: "white", padding: 20 }}>
+        Jogo das três portas — visualize no overlay da Twitch.
+      </div>
+    );
+  }
 
   return (
-    <div
-      className="game-container"
+    <main
       style={{
-        backgroundColor: TRANSPARENT || !IS_OVERLAY ? "transparent" : "#18181b",
-        boxShadow: TRANSPARENT || !IS_OVERLAY ? "none" : "0 0 15px #9147ff4d",
+        minHeight: "100%",
+        width: "100%",
+        padding: 20,
+        boxSizing: "border-box",
+        background: transparent ? "transparent" : "#17121f",
+        color: "white",
+        fontFamily: "Arial, sans-serif",
+        textAlign: "center",
+        borderRadius: 16,
       }}
     >
-      {IS_OVERLAY ? (
-        <>
-          <div>
-            {generationFinished || gameOver ? (
-              <CrosswordGrid data={selectedWords.current} revealedWords={revealedWords} />
-            ) : (
-              <span
-                className="hints-heading"
-                style={{
-                  background: TRANSPARENT ? "#252526" : "transparent",
-                  border: TRANSPARENT ? "1px solid rgba(145, 71, 255, 0.25)" : "none",
-                  padding: "0.75rem 1rem",
-                  borderRadius: "10px",
-                }}
-              >
-                Generating board...
-              </span>
-            )}
-          </div>
-          {(generationFinished || gameOver) && (
-            <div className="hints-panel">
-              {!gameOver ? (
-                <h1
-                  className="game-title"
-                  style={{
-                    background: TRANSPARENT ? "#252526" : "transparent",
-                    border: TRANSPARENT ? "1px solid rgba(145, 71, 255, 0.25)" : "none",
-                    padding: "0.75rem 1rem",
-                  }}
-                >
-                  Chat, solve the crossword!
-                </h1>
-              ) : (
-                <h1
-                  className="game-title"
-                  style={{
-                    background: TRANSPARENT ? "#252526" : "transparent",
-                    border: TRANSPARENT ? "1px solid rgba(145, 71, 255, 0.25)" : "none",
-                  }}
-                >
-                  Board solved!
-                </h1>
-              )}
+      <h1 style={{ color: "#f5c6ff", margin: "0 0 12px" }}>
+        🐈 ONDE ESTÁ O LIAN?
+      </h1>
 
-              <div className="hints-sections">
-                {!gameOver ? (
-                  <>
-                    <HintSection heading="Across">
-                      {selectedWords.current
-                        .filter((value: any) => value.direction === "horizontal")
-                        .map((h: any) => (
-                          <Hint key={h.position + "_across"} num={h.position}>
-                            {h.clue}
-                          </Hint>
-                        ))}
-                    </HintSection>
-                    <HintSection heading="Down">
-                      {selectedWords.current
-                        .filter((value: any) => value.direction === "vertical")
-                        .map((h: any) => (
-                          <Hint key={h.position + "_down"} num={h.position}>
-                            {h.clue}
-                          </Hint>
-                        ))}
-                    </HintSection>
-                  </>
-                ) : (
-                  <HintSection heading="Board MVPs">
-                    {sortedLeaderboard.map(([user, score], index) => (
-                      <Hint key={user + "_score"} num={index + 1}>
-                        {user} - {score}
-                      </Hint>
-                    ))}
-                  </HintSection>
-                )}
-              </div>
+      <p style={{ fontSize: 20, margin: "12px 0" }}>
+        {phase === "idle"
+          ? 'Digite !joguinho no chat para começar!'
+          : phase === "voting"
+          ? `Votação aberta! ${seconds}s restantes`
+          : `O LIAN ESTAVA NA PORTA ${catDoor}!`}
+      </p>
+
+      <section
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          gap: "clamp(8px, 2vw, 24px)",
+          margin: "24px auto",
+          maxWidth: 900,
+        }}
+      >
+        {[1, 2, 3].map((door) => (
+          <div
+            key={door}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              padding: "clamp(8px, 2vw, 20px)",
+              border: "3px solid #bb8bff",
+              borderRadius: 14,
+              background:
+                phase === "reveal" && door === catDoor
+                  ? "#4b315c"
+                  : "#292034",
+              boxShadow:
+                phase === "reveal" && door === catDoor
+                  ? "0 0 24px #d6a5ff"
+                  : "none",
+              opacity: phase === "idle" ? 0.8 : 1,
+            }}
+          >
+            <div style={{ fontSize: "clamp(40px, 9vw, 90px)" }}>
+              {phase === "reveal" && door === catDoor
+                ? "🐈"
+                : "🚪"}
             </div>
-          )}
-        </>
-      ) : (
-        <div
-          className="game-container"
-          style={{
-            backgroundColor: "#18181b",
-            boxShadow: "0 0 15px #9147ff4d",
-            width: "100%",
-          }}
-        >
-          <div style={{ display: "grid" }}>
-            <span className="hints-heading" style={{ display: "grid" }}>
-              Crossword Widget Information{" "}
-              <span className="hint-text" style={{ fontSize: "8px", color: "#e5e7eb3b" }}>
-                (This is only visible in editor)
-              </span>
-            </span>
 
-            <span className="hint-text">
-              For performance reasons, crossword generation is disabled in the editor by default.
-              <br />
-              To test the widget in the editor, enable the <b>"enable_in_editor"</b> variable in the widget settings.
-            </span>
-            <span className="hint-text" style={{ marginTop: "10px" }}>
-              The crossword layout is <b>not networked</b>, meaning each instance of the widget generates
-              <br />a unique puzzle. The version shown in the editor will differ from the one seen on stream.
-            </span>
-            <span className="hint-text" style={{ marginTop: "10px" }}>
-              Scaling the widget can be challenging due to the random puzzle sizes.
-              <br />
-              The default widget size is the recommended size to make sure the puzzle always fits on screen heightwise.
-              <br />
-              If you want to make the widget bigger, hold down <b>shift</b> to keep the aspect ration!
-            </span>
-            <span className="hint-text" style={{ marginTop: "30px" }}>
-              To generate a new puzzle, right-click the widget and select <b>Toggles ➔ Generate</b>.
-            </span>
+            <strong style={{ fontSize: 22 }}>!{door}</strong>
+
+            <div style={{ fontSize: 18, marginTop: 8 }}>
+              {votes[door - 1]} votos
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        ))}
+      </section>
+
+      <p style={{ fontSize: 18 }}>
+        {phase === "idle"
+          ? "🐾 O Lian está escondido. Chame o jogo quando quiser!"
+          : phase === "voting"
+          ? "Digite !1, !2 ou !3 no chat da Twitch. Cada pessoa vota uma vez!"
+          : "🐾 O Lian foi encontrado! O resultado ficará na tela."}
+      </p>
+    </main>
   );
 }
 
