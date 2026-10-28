@@ -4,6 +4,13 @@ import useTwitchChat from "./useTwitchChat";
 
 const VOTING_SECONDS = 15;
 
+// Troque estas URLs quando tiver suas imagens definitivas.
+const DOOR_IMAGE_URL =
+  "https://png.pngtree.com/png-clipart/20220731/ourmid/pngtree-wooden-door-png-image_6093732.png";
+
+const LIAN_IMAGE_URL =
+  "https://static.wikia.nocookie.net/looney-tunes/images/8/88/Sylvester_the_Cat.png/revision/latest/thumbnail/width/360/height/360?cb=20260611172313&path-prefix=pt-br";
+
 type Phase = "idle" | "voting" | "reveal";
 
 function App() {
@@ -122,7 +129,7 @@ function App() {
 
       <p style={{ fontSize: 20, margin: "12px 0" }}>
         {phase === "idle"
-          ? 'Digite !joguinho no chat para começar!'
+          ? "Digite !joguinho no chat para começar!"
           : phase === "voting"
           ? `Votação aberta! ${seconds}s restantes`
           : `O LIAN ESTAVA NA PORTA ${catDoor}!`}
@@ -132,6 +139,7 @@ function App() {
         style={{
           display: "flex",
           justifyContent: "center",
+          alignItems: "flex-start",
           gap: "clamp(8px, 2vw, 24px)",
           margin: "24px auto",
           maxWidth: 900,
@@ -143,24 +151,50 @@ function App() {
             style={{
               flex: 1,
               minWidth: 0,
-              padding: "clamp(8px, 2vw, 20px)",
-              border: "3px solid #bb8bff",
-              borderRadius: 14,
-              background:
-                phase === "reveal" && door === catDoor
-                  ? "#4b315c"
-                  : "#292034",
-              boxShadow:
-                phase === "reveal" && door === catDoor
-                  ? "0 0 24px #d6a5ff"
-                  : "none",
-              opacity: phase === "idle" ? 0.8 : 1,
+              textAlign: "center",
             }}
           >
-            <div style={{ fontSize: "clamp(40px, 9vw, 90px)" }}>
-              {phase === "reveal" && door === catDoor
-                ? "🐈"
-                : "🚪"}
+            <div
+              style={{
+                position: "relative",
+                width: "100%",
+                aspectRatio: "3 / 4",
+                maxHeight: 320,
+                margin: "0 auto",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "flex-end",
+              }}
+            >
+              <img
+                src={DOOR_IMAGE_URL}
+                alt={`Porta ${door}`}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  display: "block",
+                }}
+              />
+
+              {phase === "reveal" && door === catDoor && (
+                <img
+                  src={LIAN_IMAGE_URL}
+                  alt="Frajola"
+                  style={{
+                    position: "absolute",
+                    width: "75%",
+                    height: "55%",
+                    bottom: "0%",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    objectFit: "contain",
+                    objectPosition: "bottom",
+                    filter: "drop-shadow(0 0 8px #f5c6ff)",
+                    zIndex: 2,
+                  }}
+                />
+              )}
             </div>
 
             <strong style={{ fontSize: 22 }}>!{door}</strong>
