@@ -75,6 +75,25 @@ function App() {
     setPhase("voting");
   };
 
+  // Mantém uma referência atualizada para iniciar o jogo via mensagem do Pogly.
+  const startGameRef = useRef(startGame);
+  startGameRef.current = startGame;
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== "https://jogo-porta-lian.vercel.app") return;
+      if (event.data?.type !== "INICIAR_JOGO") return;
+
+      startGameRef.current();
+    };
+
+    window.addEventListener("message", handleMessage);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, []);
+
   chatHandler.current = (message, username, permissions) => {
     const command = message.trim().toLowerCase();
 
