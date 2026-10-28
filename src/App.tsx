@@ -17,22 +17,35 @@ function App() {
   const params = new URLSearchParams(window.location.search);
   const channel = params.get("channel");
 
-  // Imagem das portas e personagens alteraveis
+  const parsedVotingSeconds = Number(params.get("voting_seconds"));
+  const votingSeconds =
+    Number.isFinite(parsedVotingSeconds) && parsedVotingSeconds > 0
+      ? Math.max(1, Math.floor(parsedVotingSeconds))
+      : VOTING_SECONDS;
+
+  // Imagens personalizáveis pela URL
   const door1Image = params.get("door1_image") || DOOR_IMAGE_URL;
   const door2Image = params.get("door2_image") || DOOR_IMAGE_URL;
   const door3Image = params.get("door3_image") || DOOR_IMAGE_URL;
-  const characterImage = params.get("characterImage") || DEFAULT_LIAN_IMAGE_URL;
-  
+  const characterImage =
+    params.get("characterImage") || DEFAULT_LIAN_IMAGE_URL;
+
   const isOverlay = params.get("overlay") === "true";
   const transparent = params.get("transparent") === "true";
 
   const [phase, setPhase] = useState<Phase>("idle");
-  const [seconds, setSeconds] = useState(VOTING_SECONDS);
+  const phaseRef = useRef<Phase>("idle");
+
+  const [seconds, setSeconds] = useState(votingSeconds);
   const [catDoor, setCatDoor] = useState(0);
   const [votes, setVotes] = useState([0, 0, 0]);
+
   const totalVotes = votes.reduce((total, count) => total + count, 0);
   const correctVotes = catDoor > 0 ? votes[catDoor - 1] : 0;
-  const correctPercent = totalVotes > 0 ? Math.round((correctVotes / totalVotes) * 100) : 0;
+  const correctPercent =
+    totalVotes > 0
+      ? Math.round((correctVotes / totalVotes) * 100)
+      : 0;
 
   const voters = useRef(new Set<string>());
   const active = useRef(false);
@@ -47,8 +60,10 @@ function App() {
     voters.current = new Set();
     setVotes([0, 0, 0]);
     setCatDoor(Math.floor(Math.random() * 3) + 1);
-    setSeconds(VOTING_SECONDS);
+    setSeconds(votingSeconds);
+
     active.current = true;
+    phaseRef.current = "voting";
     setPhase("voting");
   };
 
@@ -60,13 +75,16 @@ function App() {
       return;
     }
 
-    if (!active.current || phase !== "voting") return;
+    if (!active.current || phaseRef.current !== "voting") {
+      return;
+    }
 
     const match = command.match(/^!([123])$/);
     if (!match) return;
 
     const voter = username.toLowerCase();
 
+    // Cada usuário pode votar apenas uma vez por rodada
     if (voters.current.has(voter)) return;
 
     voters.current.add(voter);
@@ -100,6 +118,7 @@ function App() {
     }
 
     active.current = false;
+    phaseRef.current = "reveal";
     setPhase("reveal");
   }, [phase, seconds, isOverlay]);
 
@@ -211,8 +230,6 @@ function App() {
                 />
               )}
             </div>
-
-            
 
             <div style={{ fontSize: 18, marginTop: 8 }}>
               {votes[door - 1]} votos
