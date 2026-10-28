@@ -166,37 +166,6 @@ function App() {
     );
   }
 
-  if (!isPoglyEditor && phase === "idle") {
-    return (
-      <main
-        style={{
-          width: "100%",
-          minHeight: "100%",
-          padding: 20,
-          boxSizing: "border-box",
-          background: transparent ? "transparent" : "#17121f",
-          color: "white",
-          fontFamily: "Arial, sans-serif",
-          textAlign: "center",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <p
-          style={{
-            fontSize: 20,
-            fontWeight: "bold",
-            color: "#f5c6ff",
-            margin: 0,
-          }}
-        >
-          Widget está oculto na stream, digite !joguinho para iniciar
-        </p>
-      </main>
-    );
-  }
-
   return (
     <main
       style={{
@@ -225,6 +194,7 @@ function App() {
 
       <section
         style={{
+          position: "relative",
           display: "flex",
           justifyContent: "center",
           alignItems: "flex-start",
@@ -269,6 +239,7 @@ function App() {
                   objectFit: "contain",
                   objectPosition: "center",
                   display: "block",
+                  opacity: phase === "idle" ? 0.5 : 1,
                 }}
               />
 
@@ -296,11 +267,45 @@ function App() {
             </div>
           </div>
         ))}
+
+        {phase === "idle" && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 5,
+              pointerEvents: "none",
+              padding: 12,
+              boxSizing: "border-box",
+            }}
+          >
+            <div
+              style={{
+                background: "rgba(23, 18, 31, 0.88)",
+                border: "2px solid #f5c6ff",
+                borderRadius: 14,
+                padding: "16px 22px",
+                maxWidth: 440,
+                color: "white",
+                fontSize: 20,
+                fontWeight: "bold",
+                textAlign: "center",
+                lineHeight: 1.4,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+              }}
+            >
+              Widget está oculto na stream, digite !joguinho para iniciar
+            </div>
+          </div>
+        )}
       </section>
 
       <p style={{ fontSize: 18 }}>
         {phase === "idle"
-          ? "Digite !joguinho para iniciar uma rodada."
+          ? "Prévia do jogo — a votação ainda não começou."
           : phase === "voting"
           ? "Digite !1, !2 ou !3 no chat da Twitch. Cada pessoa vota uma vez!"
           : `${correctPercent}% acertaram! ${correctVotes} de ${totalVotes} votos foram na porta certa!`}
