@@ -108,7 +108,11 @@ function App() {
 
   useTwitchChat(
     channel || "",
-    (message: string, username: string, permissions: ChatPermissions) => {
+    (
+      message: string,
+      username: string,
+      permissions: ChatPermissions
+    ) => {
       chatHandler.current(message, username, permissions);
     },
     isOverlay
@@ -165,7 +169,10 @@ function App() {
         minHeight: "100%",
         padding: 20,
         boxSizing: "border-box",
-        background: transparent ? "transparent" : "#17121f",
+        background:
+          phase === "idle" && transparent
+            ? "transparent"
+            : "#17121f",
         color: "white",
         fontFamily: "Arial, sans-serif",
         textAlign: "center",
