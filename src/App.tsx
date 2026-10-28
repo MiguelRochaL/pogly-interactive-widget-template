@@ -8,14 +8,15 @@ const VOTING_SECONDS = 15;
 const DOOR_IMAGE_URL =
   "https://f.feridinha.com/WbL3s.png";
 
-const LIAN_IMAGE_URL =
-  "https://static.wikia.nocookie.net/looney-tunes/images/8/88/Sylvester_the_Cat.png/revision/latest/thumbnail/width/360/height/360?cb=20260611172313&path-prefix=pt-br";
+const DEFAULT_LIAN_IMAGE_URL =
+  "https://f.feridinha.com/mWRgw.png";
 
 type Phase = "idle" | "voting" | "reveal";
 
 function App() {
   const params = new URLSearchParams(window.location.search);
   const channel = params.get("channel");
+  const characterImage = params.get("characterImage") || DEFAULT_LIAN_IMAGE_URL;
   const isOverlay = params.get("overlay") === "true";
   const transparent = params.get("transparent") === "true";
 
@@ -179,7 +180,7 @@ function App() {
 
               {phase === "reveal" && door === catDoor && (
                 <img
-                  src={LIAN_IMAGE_URL}
+                  src={characterImage}
                   alt="Frajola"
                   style={{
                     position: "absolute",
