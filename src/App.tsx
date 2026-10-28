@@ -75,13 +75,14 @@ function App() {
     setPhase("voting");
   };
 
-  // Mantém uma referência atualizada para iniciar o jogo via mensagem do Pogly.
+  // Mantém a função atualizada para receber o comando enviado pelo Pogly.
   const startGameRef = useRef(startGame);
   startGameRef.current = startGame;
 
+  // Recebe a mensagem enviada pela janela pai do iframe.
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== "https://jogo-porta-lian.vercel.app") return;
+      if (event.source !== window.parent) return;
       if (event.data?.type !== "INICIAR_JOGO") return;
 
       startGameRef.current();
