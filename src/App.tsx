@@ -126,7 +126,7 @@ function App() {
       }}
     >
       <h1 style={{ color: "#f5c6ff", margin: "0 0 12px" }}>
-        🐈 ONDE ESTÁ O LIAN?
+        ONDE ESTÁ O LIAN?
       </h1>
 
       <p style={{ fontSize: 20, margin: "12px 0" }}>
