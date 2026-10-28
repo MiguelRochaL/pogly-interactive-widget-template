@@ -215,7 +215,7 @@ function App() {
           ? ""
           : phase === "voting"
           ? "Digite !1, !2 ou !3 no chat da Twitch. Cada pessoa vota uma vez!"
-          : `${correctPercent}% acertaram! ${correctVotes} de ${totalVotes} votos foram na porta certa!`}}
+          : `😹 Ah! ${correctPercent}% acertaram! ${correctVotes} de ${totalVotes} votos foram na porta certa!`}
       </p>
     </main>
   );
