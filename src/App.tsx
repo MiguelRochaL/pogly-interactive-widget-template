@@ -4,7 +4,6 @@ import useTwitchChat from "./useTwitchChat";
 
 const VOTING_SECONDS = 15;
 
-// Imagens fixas
 const DOOR_IMAGE_URL =
   "https://f.feridinha.com/WbL3s.png";
 
@@ -23,7 +22,6 @@ function App() {
       ? Math.max(1, Math.floor(parsedVotingSeconds))
       : VOTING_SECONDS;
 
-  // Imagens personalizáveis pela URL
   const door1Image = params.get("door1_image") || DOOR_IMAGE_URL;
   const door2Image = params.get("door2_image") || DOOR_IMAGE_URL;
   const door3Image = params.get("door3_image") || DOOR_IMAGE_URL;
@@ -75,18 +73,14 @@ function App() {
       return;
     }
 
-    if (!active.current || phaseRef.current !== "voting") {
-      return;
-    }
+    if (!active.current || phaseRef.current !== "voting") return;
 
     const match = command.match(/^!([123])$/);
     if (!match) return;
 
     const voter = username.toLowerCase();
 
-    // Cada usuário pode votar apenas uma vez por rodada
     if (voters.current.has(voter)) return;
-
     voters.current.add(voter);
 
     const door = Number(match[1]) - 1;
@@ -125,7 +119,7 @@ function App() {
   if (!channel) {
     return (
       <div style={{ color: "white", padding: 20 }}>
-        Configure a URL com ?channel=SEUCANAL&overlay=true
+        Configure uma URL com ?channel=SEUCANAL&overlay=true
       </div>
     );
   }
@@ -187,12 +181,12 @@ function App() {
               style={{
                 position: "relative",
                 width: "100%",
-                aspectRatio: "3 / 4",
-                maxHeight: 320,
+                height: 240,
                 margin: "0 auto",
                 display: "flex",
                 justifyContent: "center",
-                alignItems: "flex-end",
+                alignItems: "center",
+                overflow: "visible",
               }}
             >
               <img
@@ -208,6 +202,7 @@ function App() {
                   width: "100%",
                   height: "100%",
                   objectFit: "contain",
+                  objectPosition: "center",
                   display: "block",
                 }}
               />
