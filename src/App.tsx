@@ -1,6 +1,6 @@
 
 import { useEffect, useRef, useState } from "react";
-import useTwitchChat from "./useTwitchChat";
+import useTwitchChat, { type ChatPermissions } from "./useTwitchChat";
 
 const VOTING_SECONDS = 15;
 
@@ -49,7 +49,11 @@ function App() {
   const active = useRef(false);
 
   const chatHandler = useRef<
-    (message: string, username: string) => void
+    (
+      message: string,
+      username: string,
+      permissions: ChatPermissions
+    ) => void
   >(() => {});
 
   const startGame = () => {
@@ -65,10 +69,17 @@ function App() {
     setPhase("voting");
   };
 
-  chatHandler.current = (message, username) => {
+  chatHandler.current = (message, username, permissions) => {
     const command = message.trim().toLowerCase();
 
     if (command === "!joguinho") {
+      if (
+        !permissions.isModerator &&
+        !permissions.isBroadcaster
+      ) {
+        return;
+      }
+
       startGame();
       return;
     }
@@ -94,8 +105,12 @@ function App() {
 
   useTwitchChat(
     channel || "",
-    (message: string, username: string) => {
-      chatHandler.current(message, username);
+    (
+      message: string,
+      username: string,
+      permissions: ChatPermissions
+    ) => {
+      chatHandler.current(message, username, permissions);
     },
     isOverlay
   );
