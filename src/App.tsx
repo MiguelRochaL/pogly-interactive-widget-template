@@ -252,7 +252,7 @@ function App() {
         {phase === "idle"
           ? ""
           : phase === "voting"
-          ? "Digite !1, !2 ou !3 no chat da Twitch. Cada pessoa vota uma vez!"
+          ? "Digite !1, !2 ou !3 no chat!"
           : `${correctPercent}% acertaram! ${correctVotes} de ${totalVotes} votos foram na porta certa!`}
       </p>
     </main>
