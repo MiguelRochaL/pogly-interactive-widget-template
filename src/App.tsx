@@ -6,7 +6,7 @@ const VOTING_SECONDS = 15;
 
 // Troque estas URLs quando tiver suas imagens definitivas.
 const DOOR_IMAGE_URL =
-  "https://png.pngtree.com/png-clipart/20220731/ourmid/pngtree-wooden-door-png-image_6093732.png";
+  "https://f.feridinha.com/WbL3s.png";
 
 const LIAN_IMAGE_URL =
   "https://static.wikia.nocookie.net/looney-tunes/images/8/88/Sylvester_the_Cat.png/revision/latest/thumbnail/width/360/height/360?cb=20260611172313&path-prefix=pt-br";
