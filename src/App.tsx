@@ -25,6 +25,9 @@ function App() {
   const [seconds, setSeconds] = useState(VOTING_SECONDS);
   const [catDoor, setCatDoor] = useState(0);
   const [votes, setVotes] = useState([0, 0, 0]);
+  const totalVotes = votes.reduce((total, count) => total + count, 0);
+  const correctVotes = catDoor > 0 ? votes[catDoor - 1] : 0;
+  const correctPercent = totalVotes > 0 ? Math.round((correctVotes / totalVotes) * 100) : 0;
 
   const voters = useRef(new Set<string>());
   const active = useRef(false);
@@ -212,7 +215,7 @@ function App() {
           ? ""
           : phase === "voting"
           ? "Digite !1, !2 ou !3 no chat da Twitch. Cada pessoa vota uma vez!"
-          : ""}
+          : `${correctPercent}% acertaram! ${correctVotes} de ${totalVotes} votos foram na porta certa!`}}
       </p>
     </main>
   );
