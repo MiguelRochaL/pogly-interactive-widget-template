@@ -36,7 +36,6 @@ function App() {
 
   const isOverlay = params.get("overlay") === "true";
   const transparent = params.get("transparent") === "true";
-  const isPoglyEditor = params.get("pogly_editor") === "true";
 
   const [phase, setPhase] = useState<Phase>("idle");
   const phaseRef = useRef<Phase>("idle");
@@ -80,10 +79,7 @@ function App() {
     const command = message.trim().toLowerCase();
 
     if (command === "!joguinho") {
-      if (
-        !permissions.isModerator &&
-        !permissions.isBroadcaster
-      ) {
+      if (!permissions.isModerator && !permissions.isBroadcaster) {
         return;
       }
 
@@ -112,11 +108,7 @@ function App() {
 
   useTwitchChat(
     channel || "",
-    (
-      message: string,
-      username: string,
-      permissions: ChatPermissions
-    ) => {
+    (message: string, username: string, permissions: ChatPermissions) => {
       chatHandler.current(message, username, permissions);
     },
     isOverlay
@@ -169,8 +161,8 @@ function App() {
   return (
     <main
       style={{
-        minHeight: "100%",
         width: "100%",
+        minHeight: "100%",
         padding: 20,
         boxSizing: "border-box",
         background: transparent ? "transparent" : "#17121f",
@@ -246,7 +238,7 @@ function App() {
               {phase === "reveal" && door === catDoor && (
                 <img
                   src={characterImage}
-                  alt="Frajola"
+                  alt="Lian"
                   style={{
                     position: "absolute",
                     width: "75%",
