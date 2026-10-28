@@ -212,7 +212,7 @@ function App() {
               )}
             </div>
 
-            <strong style={{ fontSize: 22 }}>!{door}</strong>
+            
 
             <div style={{ fontSize: 18, marginTop: 8 }}>
               {votes[door - 1]} votos
@@ -226,7 +226,7 @@ function App() {
           ? ""
           : phase === "voting"
           ? "Digite !1, !2 ou !3 no chat da Twitch. Cada pessoa vota uma vez!"
-          : `😹 Ah! ${correctPercent}% acertaram! ${correctVotes} de ${totalVotes} votos foram na porta certa!`}
+          : `${correctPercent}% acertaram! ${correctVotes} de ${totalVotes} votos foram na porta certa!`}
       </p>
     </main>
   );
