@@ -2,335 +2,315 @@
 import { useEffect, useRef, useState } from "react";
 import useTwitchChat, { type ChatPermissions } from "./useTwitchChat";
 
+const VOTING_SECONDS = 15;
+const REVEAL_SECONDS = 15;
+
+const DOOR_IMAGE_URL = "https://f.feridinha.com/WbL3s.png";
+const DEFAULT_LIAN_IMAGE_URL = "https://f.feridinha.com/mWRgw.png";
+
 type Phase = "idle" | "voting" | "reveal";
 
-const VOTING_SECONDS = 30;
-const REVEAL_SECONDS = 10;
-
-const DEFAULT_DOORS = [
-  "https://c.feridinha.com/zeOHV.png",
-  "https://f.feridinha.com/aDASW.png",
-  "https://f.feridinha.com/vuiVx.png",
-];
-
-const DEFAULT_CHARACTER =
-  "https://f.feridinha.com/mWRgw.png";
-
-export default function App() {
+function App() {
   const params = new URLSearchParams(window.location.search);
+  const channel = params.get("channel");
 
-  const channel = params.get("channel") || "umister";
+  const parsedVotingSeconds = Number(params.get("voting_seconds"));
+  const votingSeconds =
+    Number.isFinite(parsedVotingSeconds) && parsedVotingSeconds > 0
+      ? Math.max(1, Math.floor(parsedVotingSeconds))
+      : VOTING_SECONDS;
+
+  const parsedRevealSeconds = Number(params.get("reveal_seconds"));
+  const revealSeconds =
+    params.has("reveal_seconds") &&
+    Number.isFinite(parsedRevealSeconds) &&
+    parsedRevealSeconds >= 0
+      ? Math.floor(parsedRevealSeconds)
+      : REVEAL_SECONDS;
+
+  const door1Image = params.get("door1_image") || DOOR_IMAGE_URL;
+  const door2Image = params.get("door2_image") || DOOR_IMAGE_URL;
+  const door3Image = params.get("door3_image") || DOOR_IMAGE_URL;
+  const characterImage =
+    params.get("characterImage") || DEFAULT_LIAN_IMAGE_URL;
+
   const isOverlay = params.get("overlay") === "true";
   const transparent = params.get("transparent") === "true";
 
-  const votingSeconds = Math.max(
-    1,
-    Number(params.get("voting_seconds")) || VOTING_SECONDS
-  );
-
-  const revealSeconds = Math.max(
-    1,
-    Number(params.get("reveal_seconds")) || REVEAL_SECONDS
-  );
-
-  const doors = [
-    params.get("door1_image") || DEFAULT_DOORS[0],
-    params.get("door2_image") || DEFAULT_DOORS[1],
-    params.get("door3_image") || DEFAULT_DOORS[2],
-  ];
-
-  const characterImage =
-    params.get("characterImage") || DEFAULT_CHARACTER;
-
   const [phase, setPhase] = useState<Phase>("idle");
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [votes, setVotes] = useState([0, 0, 0]);
-  const [correctDoor, setCorrectDoor] = useState(0);
-
   const phaseRef = useRef<Phase>("idle");
-  const votesRef = useRef<Record<string, number>>({});
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startGameRef = useRef<() => void>(() => {});
 
-  function changePhase(nextPhase: Phase) {
-    phaseRef.current = nextPhase;
-    setPhase(nextPhase);
-  }
+  const [seconds, setSeconds] = useState(votingSeconds);
+  const [catDoor, setCatDoor] = useState(0);
+  const [votes, setVotes] = useState([0, 0, 0]);
 
-  function clearGameTimer() {
-    if (timerRef.current !== null) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }
+  const totalVotes = votes.reduce((total, count) => total + count, 0);
+  const correctVotes = catDoor > 0 ? votes[catDoor - 1] : 0;
+  const correctPercent =
+    totalVotes > 0
+      ? Math.round((correctVotes / totalVotes) * 100)
+      : 0;
 
-  function revealResult() {
-    clearGameTimer();
-    changePhase("reveal");
-    setTimeLeft(revealSeconds);
+  const voters = useRef(new Set<string>());
+  const active = useRef(false);
 
-    let remaining = revealSeconds;
+  const chatHandler = useRef<
+    (
+      message: string,
+      username: string,
+      permissions: ChatPermissions
+    ) => void
+  >(() => {});
 
-    timerRef.current = setInterval(() => {
-      remaining -= 1;
-      setTimeLeft(remaining);
+  const startGame = () => {
+    if (active.current) return;
 
-      if (remaining <= 0) {
-        clearGameTimer();
-        setTimeLeft(0);
-        changePhase("idle");
-      }
-    }, 1000);
-  }
-
-  function startGame() {
-    clearGameTimer();
-
-    votesRef.current = {};
+    voters.current = new Set();
     setVotes([0, 0, 0]);
-    setCorrectDoor(Math.floor(Math.random() * 3) + 1);
-    setTimeLeft(votingSeconds);
-    changePhase("voting");
+    setCatDoor(Math.floor(Math.random() * 3) + 1);
+    setSeconds(votingSeconds);
 
-    let remaining = votingSeconds;
+    active.current = true;
+    phaseRef.current = "voting";
+    setPhase("voting");
+  };
 
-    timerRef.current = setInterval(() => {
-      remaining -= 1;
-      setTimeLeft(remaining);
-
-      if (remaining <= 0) {
-        revealResult();
-      }
-    }, 1000);
-  }
-
-  useEffect(() => {
-    startGameRef.current = startGame;
-  });
-
-  // Recebe o comando enviado pelo painel do Pogly.
-  useEffect(() => {
-    function handlePoglyMessage(event: MessageEvent) {
-      if (event.source !== window.parent) return;
-
-      if (event.data?.type === "INICIAR_JOGO") {
-        startGameRef.current();
-      }
-    }
-
-    window.addEventListener("message", handlePoglyMessage);
-
-    return () => {
-      window.removeEventListener("message", handlePoglyMessage);
-    };
-  }, []);
-
-  // O hook correto recebe canal, callback e indicador de overlay.
-  const handleChatMessage = (
-    message: string,
-    username: string,
-    permissions: ChatPermissions
-  ) => {
+  chatHandler.current = (message, username, permissions) => {
     const command = message.trim().toLowerCase();
 
     if (command === "!joguinho") {
-      if (permissions.isModerator || permissions.isBroadcaster) {
-        startGameRef.current();
+      if (!permissions.isModerator && !permissions.isBroadcaster) {
+        return;
       }
+
+      startGame();
       return;
     }
 
-    if (phaseRef.current !== "voting") return;
+    if (!active.current || phaseRef.current !== "voting") return;
 
     const match = command.match(/^!([123])$/);
     if (!match) return;
 
-    const user = username.toLowerCase();
+    const voter = username.toLowerCase();
 
-    if (votesRef.current[user] !== undefined) return;
+    if (voters.current.has(voter)) return;
+    voters.current.add(voter);
 
-    const choice = Number(match[1]);
-    votesRef.current[user] = choice;
+    const door = Number(match[1]) - 1;
 
-    setVotes((current) => {
-      const updated = [...current];
-      updated[choice - 1] += 1;
-      return updated;
-    });
+    setVotes((oldVotes) =>
+      oldVotes.map((count, index) =>
+        index === door ? count + 1 : count
+      )
+    );
   };
 
-  useTwitchChat(channel, handleChatMessage, isOverlay);
-
-  useEffect(() => {
-    return () => clearGameTimer();
-  }, []);
-
-  const totalVotes = votes.reduce((sum, count) => sum + count, 0);
-
-  const percentages = votes.map((count) =>
-    totalVotes === 0 ? 0 : Math.round((count / totalVotes) * 100)
+  useTwitchChat(
+    channel || "",
+    (
+      message: string,
+      username: string,
+      permissions: ChatPermissions
+    ) => {
+      chatHandler.current(message, username, permissions);
+    },
+    isOverlay
   );
 
-  const pageStyle: React.CSSProperties = {
-    boxSizing: "border-box",
-    width: "100%",
-    height: "100vh",
-    overflow: "hidden",
-    padding: 12,
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    textAlign: "center",
-    fontFamily: "Arial, Helvetica, sans-serif",
-    color: "#fff",
-    background:
-      transparent && phase === "idle"
-        ? "transparent"
-        : "rgba(10,10,18,0.94)",
-  };
+  useEffect(() => {
+    if (!isOverlay || phase !== "voting") return;
 
-  const titleStyle: React.CSSProperties = {
-    fontSize: "clamp(24px,4vw,42px)",
-    fontWeight: 900,
-    margin: "0 0 8px",
-    textShadow: "0 3px 8px #000",
-  };
+    if (seconds > 0) {
+      const timer = setTimeout(() => {
+        setSeconds((current) => current - 1);
+      }, 1000);
 
-  const doorsStyle: React.CSSProperties = {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "stretch",
-    gap: 12,
-    width: "100%",
-    maxWidth: 900,
-  };
+      return () => clearTimeout(timer);
+    }
 
-  const cardStyle: React.CSSProperties = {
-    flex: "1 1 0",
-    minWidth: 0,
-    maxWidth: 270,
-    overflow: "hidden",
-    border: "3px solid #fff",
-    borderRadius: 12,
-    background: "#242438",
-    boxShadow: "0 4px 18px #0008",
-  };
+    active.current = false;
+    phaseRef.current = "reveal";
+    setPhase("reveal");
+  }, [phase, seconds, isOverlay]);
 
-  const imageStyle: React.CSSProperties = {
-    display: "block",
-    width: "100%",
-    aspectRatio: "3 / 4",
-    objectFit: "contain",
-    background: "#171725",
-  };
+  useEffect(() => {
+    if (phase !== "reveal") return;
+
+    const timer = setTimeout(() => {
+      active.current = false;
+      phaseRef.current = "idle";
+      setPhase("idle");
+    }, revealSeconds * 1000);
+
+    return () => clearTimeout(timer);
+  }, [phase, revealSeconds]);
+
+  if (!channel) {
+    return (
+      <div style={{ color: "white", padding: 20 }}>
+        Configure uma URL com ?channel=SEUCANAL&overlay=true
+      </div>
+    );
+  }
+
+  if (!isOverlay) {
+    return (
+      <div style={{ color: "white", padding: 20 }}>
+        Jogo das três portas — visualize no overlay da Twitch.
+      </div>
+    );
+  }
 
   return (
-    <main style={pageStyle}>
-      {phase === "idle" && (
-        <>
-          <h1 style={titleStyle}>🔎 Onde está o Lian?</h1>
-          <p>
-            Digite <strong>!joguinho</strong> no chat para iniciar!
-          </p>
-        </>
-      )}
+    <main
+      style={{
+        width: "100%",
+        minHeight: "100%",
+        padding: 20,
+        boxSizing: "border-box",
+        background:
+          phase === "idle" && transparent
+            ? "transparent"
+            : "#17121f",
+        color: "white",
+        fontFamily: "Arial, sans-serif",
+        textAlign: "center",
+        borderRadius: 16,
+      }}
+    >
+      <h1 style={{ color: "#f5c6ff", margin: "0 0 12px" }}>
+        ONDE ESTÁ O LIAN?
+      </h1>
 
-      {phase === "voting" && (
-        <>
-          <h1 style={titleStyle}>🚪 Onde está o Lian?</h1>
-          <p>
-            Vote no chat: <strong>!1</strong>,{" "}
-            <strong>!2</strong> ou <strong>!3</strong>
-          </p>
+      <p style={{ fontSize: 20, margin: "12px 0" }}>
+        {phase === "idle"
+          ? "Prévia do jogo"
+          : phase === "voting"
+          ? `Votação aberta! ${seconds}s restantes`
+          : `O LIAN ESTAVA NA PORTA ${catDoor}!`}
+      </p>
 
+      <section
+        style={{
+          position: "relative",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "flex-start",
+          gap: "clamp(8px, 2vw, 24px)",
+          margin: "24px auto",
+          maxWidth: 900,
+        }}
+      >
+        {[1, 2, 3].map((door) => (
           <div
+            key={door}
             style={{
-              fontSize: "clamp(24px,4vw,38px)",
-              fontWeight: 900,
-              color: "#ffe66d",
-              margin: "12px 0",
+              flex: 1,
+              minWidth: 0,
+              textAlign: "center",
             }}
           >
-            ⏱️ {timeLeft}s
-          </div>
+            <div
+              style={{
+                position: "relative",
+                width: "100%",
+                height: 240,
+                margin: "0 auto",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                overflow: "visible",
+              }}
+            >
+              <img
+                src={
+                  door === 1
+                    ? door1Image
+                    : door === 2
+                    ? door2Image
+                    : door3Image
+                }
+                alt={`Porta ${door}`}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  objectPosition: "center",
+                  display: "block",
+                  opacity: phase === "idle" ? 0.5 : 1,
+                }}
+              />
 
-          <div style={doorsStyle}>
-            {doors.map((src, index) => (
-              <div key={index} style={cardStyle}>
-                <img src={src} alt={`Porta ${index + 1}`} style={imageStyle} />
-                <div style={{ padding: 8, fontWeight: 900 }}>
-                  PORTA {index + 1}
-                </div>
-                <div style={{ padding: 5, fontWeight: 700 }}>
-                  {votes[index]} votos · {percentages[index]}%
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {phase === "reveal" && (
-        <>
-          <h1 style={titleStyle}>🎉 Resultado!</h1>
-          <p>
-            O Lian estava atrás da porta {correctDoor}!
-          </p>
-
-          <div style={doorsStyle}>
-            {doors.map((src, index) => {
-              const correct = index + 1 === correctDoor;
-
-              return (
-                <div
-                  key={index}
+              {phase === "reveal" && door === catDoor && (
+                <img
+                  src={characterImage}
+                  alt="Lian"
                   style={{
-                    ...cardStyle,
-                    borderColor: correct ? "#55ff88" : "#777",
-                    borderWidth: correct ? 5 : 3,
-                    boxShadow: correct
-                      ? "0 0 24px #55ff88"
-                      : "0 4px 18px #0008",
+                    position: "absolute",
+                    width: "75%",
+                    height: "55%",
+                    bottom: "0%",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    objectFit: "contain",
+                    objectPosition: "bottom",
+                    zIndex: 2,
                   }}
-                >
-                  <img src={src} alt={`Porta ${index + 1}`} style={imageStyle} />
-                  <div
-                    style={{
-                      padding: 8,
-                      fontWeight: 900,
-                      background: correct ? "#176b3a" : "#292940",
-                    }}
-                  >
-                    {correct ? "✅ " : ""}PORTA {index + 1}
-                  </div>
-                  <div style={{ padding: 5, fontWeight: 700 }}>
-                    {votes[index]} votos · {percentages[index]}%
-                  </div>
+                />
+              )}
+            </div>
 
-                  {correct && (
-                    <img
-                      src={characterImage}
-                      alt="Lian"
-                      style={{
-                        display: "block",
-                        maxWidth: "min(260px,55vw)",
-                        maxHeight: "25vh",
-                        objectFit: "contain",
-                        margin: "12px auto",
-                      }}
-                    />
-                  )}
-                </div>
-              );
-            })}
+            <div style={{ fontSize: 18, marginTop: 8 }}>
+              {votes[door - 1]} votos
+            </div>
           </div>
+        ))}
 
-          <p style={{ fontWeight: 900, fontSize: 24 }}>
-            Próxima rodada em {timeLeft}s
-          </p>
-        </>
-      )}
+        {phase === "idle" && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 5,
+              pointerEvents: "none",
+              padding: 12,
+              boxSizing: "border-box",
+            }}
+          >
+            <div
+              style={{
+                background: "rgba(23, 18, 31, 0.88)",
+                border: "2px solid #f5c6ff",
+                borderRadius: 14,
+                padding: "16px 22px",
+                maxWidth: 440,
+                color: "white",
+                fontSize: 20,
+                fontWeight: "bold",
+                textAlign: "center",
+                lineHeight: 1.4,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+              }}
+            >
+              Widget está oculto na stream, digite !joguinho para iniciar
+            </div>
+          </div>
+        )}
+      </section>
+
+      <p style={{ fontSize: 18 }}>
+        {phase === "idle"
+          ? "Prévia do jogo — a votação ainda não começou."
+          : phase === "voting"
+          ? "Digite !1, !2 ou !3 no chat da Twitch. Cada pessoa vota uma vez!"
+          : `${correctPercent}% acertaram! ${correctVotes} de ${totalVotes} votos foram na porta certa!`}
+      </p>
     </main>
   );
 }
+
+export default App;
