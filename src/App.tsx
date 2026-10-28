@@ -131,7 +131,7 @@ function App() {
 
       <p style={{ fontSize: 20, margin: "12px 0" }}>
         {phase === "idle"
-          ? "Digite !joguinho no chat para começar!"
+          ? ""
           : phase === "voting"
           ? `Votação aberta! ${seconds}s restantes`
           : `O LIAN ESTAVA NA PORTA ${catDoor}!`}
@@ -192,7 +192,6 @@ function App() {
                     transform: "translateX(-50%)",
                     objectFit: "contain",
                     objectPosition: "bottom",
-                    filter: "drop-shadow(0 0 8px #f5c6ff)",
                     zIndex: 2,
                   }}
                 />
@@ -210,10 +209,10 @@ function App() {
 
       <p style={{ fontSize: 18 }}>
         {phase === "idle"
-          ? "🐾 O Lian está escondido. Chame o jogo quando quiser!"
+          ? ""
           : phase === "voting"
           ? "Digite !1, !2 ou !3 no chat da Twitch. Cada pessoa vota uma vez!"
-          : "🐾 O Lian foi encontrado! O resultado ficará na tela."}
+          : ""}
       </p>
     </main>
   );
