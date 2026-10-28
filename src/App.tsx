@@ -2,57 +2,56 @@
 import { useEffect, useRef, useState } from "react";
 import { useTwitchChat } from "./useTwitchChat";
 
+type Phase = "idle" | "voting" | "reveal";
+
 const VOTING_SECONDS = 15;
 const REVEAL_SECONDS = 15;
 
-const DEFAULT_DOOR_IMAGE = "https://f.feridinha.com/WbL3s.png";
-const DEFAULT_CHARACTER_IMAGE = "https://f.feridinha.com/mWRgw.png";
+const DEFAULT_DOORS = [
+  "https://c.feridinha.com/zeOHV.png",
+  "https://f.feridinha.com/aDASW.png",
+  "https://f.feridinha.com/vuiVx.png",
+];
 
-type Phase = "idle" | "voting" | "reveal";
-type VoteMap = Record<string, number>;
-
-function getParam(name: string, fallback: string): string {
-  const params = new URLSearchParams(window.location.search);
-  return params.get(name) || fallback;
-}
+const DEFAULT_CHARACTER =
+  "https://f.feridinha.com/mWRgw.png";
 
 export default function App() {
-  const channel = getParam("channel", "umister");
+  const params = new URLSearchParams(window.location.search);
 
-  const doorImages = [
-    getParam("door1_image", DEFAULT_DOOR_IMAGE),
-    getParam("door2_image", DEFAULT_DOOR_IMAGE),
-    getParam("door3_image", DEFAULT_DOOR_IMAGE),
-  ];
-
-  const characterImage = getParam(
-    "characterImage",
-    DEFAULT_CHARACTER_IMAGE
-  );
-
+  const channel = params.get("channel") || "umister";
   const votingSeconds = Math.max(
     1,
-    Number(getParam("voting_seconds", String(VOTING_SECONDS))) ||
-      VOTING_SECONDS
+    Number(params.get("voting_seconds")) || VOTING_SECONDS
   );
-
   const revealSeconds = Math.max(
     1,
-    Number(getParam("reveal_seconds", String(REVEAL_SECONDS))) ||
-      REVEAL_SECONDS
+    Number(params.get("reveal_seconds")) || REVEAL_SECONDS
   );
 
-  const transparent =
-    getParam("transparent", "false").toLowerCase() === "true";
+  const doors = [
+    params.get("door1_image") || DEFAULT_DOORS[0],
+    params.get("door2_image") || DEFAULT_DOORS[1],
+    params.get("door3_image") || DEFAULT_DOORS[2],
+  ];
+
+  const characterImage =
+    params.get("characterImage") || DEFAULT_CHARACTER;
+
+  const transparent = params.get("transparent") === "true";
 
   const [phase, setPhase] = useState<Phase>("idle");
-  const [votes, setVotes] = useState<VoteMap>({});
-  const [correctDoor, setCorrectDoor] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [votes, setVotes] = useState([0, 0, 0]);
+  const [correctDoor, setCorrectDoor] = useState(0);
   const [round, setRound] = useState(0);
 
   const phaseRef = useRef<Phase>("idle");
-  const votesRef = useRef<VoteMap>({});
+  const startGameRef = useRef<() => void>(() => {});
+  const votesRef = useRef<Record<string, number>>({});
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  );
   const roundRef = useRef(0);
 
   function changePhase(nextPhase: Phase) {
@@ -60,54 +59,70 @@ export default function App() {
     setPhase(nextPhase);
   }
 
-  function startGame() {
-    // Impede iniciar outra partida enquanto uma rodada estiver ativa.
-    if (phaseRef.current !== "idle") return;
+  function clearGameTimer() {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }
 
-    roundRef.current += 1;
-    setRound(roundRef.current);
+  function startGame() {
+    clearGameTimer();
 
     votesRef.current = {};
-    setVotes({});
+    setVotes([0, 0, 0]);
 
     const chosenDoor = Math.floor(Math.random() * 3) + 1;
     setCorrectDoor(chosenDoor);
 
+    roundRef.current += 1;
+    setRound(roundRef.current);
+
     setTimeLeft(votingSeconds);
     changePhase("voting");
+
+    let remaining = votingSeconds;
+
+    timerRef.current = setInterval(() => {
+      remaining -= 1;
+      setTimeLeft(remaining);
+
+      if (remaining <= 0) {
+        clearGameTimer();
+        revealResult();
+      }
+    }, 1000);
   }
 
-  function registerVote(username: string, door: number) {
-    if (phaseRef.current !== "voting") return;
-    if (door < 1 || door > 3) return;
+  function revealResult() {
+    clearGameTimer();
+    changePhase("reveal");
+    setTimeLeft(revealSeconds);
 
-    const normalizedUsername = username.trim().toLowerCase();
-    if (!normalizedUsername) return;
+    let remaining = revealSeconds;
 
-    if (votesRef.current[normalizedUsername] !== undefined) return;
+    timerRef.current = setInterval(() => {
+      remaining -= 1;
+      setTimeLeft(remaining);
 
-    const nextVotes = {
-      ...votesRef.current,
-      [normalizedUsername]: door,
-    };
-
-    votesRef.current = nextVotes;
-    setVotes(nextVotes);
+      if (remaining <= 0) {
+        clearGameTimer();
+        changePhase("idle");
+        setTimeLeft(0);
+      }
+    }, 1000);
   }
 
-  // Mantém uma referência atualizada para o botão do Pogly.
-  const startGameRef = useRef(startGame);
-
+  // Mantém sempre disponível a versão atual da função.
   useEffect(() => {
     startGameRef.current = startGame;
   });
 
-  // RECEBE O COMANDO DE INICIAR ENVIADO PELO POGLY.
+  // Recebe o comando enviado pelo painel do Pogly.
   useEffect(() => {
     function handlePoglyMessage(event: MessageEvent) {
-      if (event.origin !== "https://jogo-porta-lian.vercel.app") {
-        return;
-      }
+      // Aceita mensagens da janela que contém o iframe.
+      if (event.source !== window.parent) return;
 
       if (event.data?.type === "INICIAR_JOGO") {
         startGameRef.current();
@@ -117,277 +132,266 @@ export default function App() {
     window.addEventListener("message", handlePoglyMessage);
 
     return () => {
-      window.removeEventListener("message", handlePoglyMessage);
+      window.removeEventListener(
+        "message",
+        handlePoglyMessage
+      );
     };
   }, []);
 
-  const { messages } = useTwitchChat(channel);
+  // Comandos recebidos pelo chat da Twitch.
+  useTwitchChat(
+    (
+      message: string,
+      username: string,
+      permissions: {
+        isModerator: boolean;
+        isBroadcaster: boolean;
+      }
+    ) => {
+      const command = message.trim().toLowerCase();
 
-  // Comando !joguinho e votação pelo chat da Twitch.
-  useEffect(() => {
-    if (!messages?.length) return;
-
-    const latestMessage = messages[messages.length - 1];
-    if (!latestMessage) return;
-
-    const username =
-      latestMessage.username ||
-      latestMessage.user?.name ||
-      latestMessage.user?.displayName ||
-      "";
-
-    const messageText = String(
-      latestMessage.message || latestMessage.text || ""
-    )
-      .trim()
-      .toLowerCase();
-
-    const isModerator =
-      latestMessage.isMod === true ||
-      latestMessage.mod === true ||
-      latestMessage.badges?.moderator === true ||
-      latestMessage.badges?.broadcaster === true;
-
-    if (messageText === "!joguinho") {
-      if (isModerator) startGameRef.current();
-      return;
-    }
-
-    if (messageText === "!1") registerVote(username, 1);
-    if (messageText === "!2") registerVote(username, 2);
-    if (messageText === "!3") registerVote(username, 3);
-  }, [messages]);
-
-  // Contagem regressiva da votação e da revelação.
-  useEffect(() => {
-    if (phase !== "voting" && phase !== "reveal") return;
-
-    const timer = window.setInterval(() => {
-      setTimeLeft((current) => {
-        if (current > 1) return current - 1;
-
-        window.clearInterval(timer);
-
-        if (phaseRef.current === "voting") {
-          changePhase("reveal");
-          return revealSeconds;
+      if (command === "!joguinho") {
+        if (
+          permissions.isModerator ||
+          permissions.isBroadcaster
+        ) {
+          startGameRef.current();
         }
+        return;
+      }
 
-        changePhase("idle");
-        return 0;
+      if (phaseRef.current !== "voting") return;
+
+      const match = command.match(/^!([123])$/);
+      if (!match) return;
+
+      const user = username.toLowerCase();
+
+      // Cada usuário pode votar apenas uma vez por rodada.
+      if (votesRef.current[user] !== undefined) return;
+
+      const choice = Number(match[1]);
+      votesRef.current[user] = choice;
+
+      setVotes((currentVotes) => {
+        const updated = [...currentVotes];
+        updated[choice - 1] += 1;
+        return updated;
       });
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [phase, round, revealSeconds]);
-
-  const voteCounts = [1, 2, 3].map((door) =>
-    Object.values(votes).filter((vote) => vote === door).length
+    }
   );
 
-  const totalVotes = voteCounts.reduce((sum, count) => sum + count, 0);
+  useEffect(() => {
+    return () => clearGameTimer();
+  }, []);
 
-  const votePercentages = voteCounts.map((count) =>
-    totalVotes === 0 ? 0 : Math.round((count / totalVotes) * 100)
+  const totalVotes = votes.reduce(
+    (total, count) => total + count,
+    0
   );
+
+  const percentages = votes.map((count) =>
+    totalVotes === 0
+      ? 0
+      : Math.round((count / totalVotes) * 100)
+  );
+
+  const background =
+    transparent && phase === "idle"
+      ? "transparent"
+      : "rgba(10, 10, 18, 0.94)";
+
+  const styles: Record<string, React.CSSProperties> = {
+    page: {
+      width: "100%",
+      height: "100vh",
+      boxSizing: "border-box",
+      overflow: "hidden",
+      background,
+      color: "#fff",
+      fontFamily: "Arial, Helvetica, sans-serif",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      textAlign: "center",
+      padding: 12,
+    },
+    title: {
+      fontSize: "clamp(24px, 4vw, 42px)",
+      fontWeight: 900,
+      margin: "0 0 8px",
+      textShadow: "0 3px 8px #000",
+    },
+    subtitle: {
+      fontSize: "clamp(14px, 2vw, 21px)",
+      margin: "4px 0 14px",
+      fontWeight: 700,
+    },
+    doors: {
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "stretch",
+      gap: 12,
+      width: "100%",
+      maxWidth: 900,
+    },
+    door: {
+      flex: "1 1 0",
+      minWidth: 0,
+      maxWidth: 270,
+      border: "3px solid #fff",
+      borderRadius: 12,
+      overflow: "hidden",
+      background: "#242438",
+      boxShadow: "0 4px 18px #0008",
+      position: "relative",
+    },
+    doorImage: {
+      display: "block",
+      width: "100%",
+      aspectRatio: "3 / 4",
+      objectFit: "contain",
+      background: "#171725",
+    },
+    number: {
+      padding: "8px 4px",
+      fontSize: "clamp(18px, 3vw, 28px)",
+      fontWeight: 900,
+      background: "#292940",
+    },
+    timer: {
+      fontSize: "clamp(24px, 4vw, 38px)",
+      fontWeight: 900,
+      margin: "12px 0",
+      color: "#ffe66d",
+    },
+    vote: {
+      fontSize: "clamp(13px, 2vw, 19px)",
+      fontWeight: 700,
+      padding: "5px 2px",
+    },
+    result: {
+      marginTop: 16,
+      fontSize: "clamp(20px, 3vw, 30px)",
+      fontWeight: 900,
+    },
+    character: {
+      display: "block",
+      maxWidth: "min(260px, 55vw)",
+      maxHeight: "28vh",
+      objectFit: "contain",
+      margin: "12px auto 0",
+    },
+  };
 
   return (
-    <main
-      style={{
-        width: "100%",
-        minHeight: "100vh",
-        boxSizing: "border-box",
-        padding: 12,
-        color: "#fff",
-        background:
-          transparent && phase === "idle"
-            ? "transparent"
-            : "rgba(22, 10, 37, 0.94)",
-        fontFamily: "Arial, sans-serif",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        overflow: "hidden",
-      }}
-    >
-      <section
-        style={{
-          width: "100%",
-          maxWidth: 650,
-          position: "relative",
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 10,
-          alignItems: "end",
-        }}
-      >
-        {[1, 2, 3].map((door) => {
-          const isCorrect = correctDoor === door;
-          const showCharacter = phase === "reveal" && isCorrect;
-          const percentage = votePercentages[door - 1];
+    <main style={styles.page}>
+      {phase === "idle" && (
+        <div>
+          <h1 style={styles.title}>🔎 Onde está o Lian?</h1>
+          <p style={styles.subtitle}>
+            Digite <strong>!joguinho</strong> no chat para iniciar!
+          </p>
+        </div>
+      )}
 
-          return (
-            <div
-              key={door}
-              style={{
-                minWidth: 0,
-                position: "relative",
-                textAlign: "center",
-                opacity: phase === "idle" ? 0.5 : 1,
-                transition: "opacity 0.2s ease",
-              }}
-            >
-              <div
-                style={{
-                  position: "relative",
-                  width: "100%",
-                  aspectRatio: "3 / 4",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {showCharacter && (
-                  <img
-                    src={characterImage}
-                    alt="Lian"
-                    style={{
-                      position: "absolute",
-                      width: "72%",
-                      height: "72%",
-                      objectFit: "contain",
-                      bottom: "5%",
-                      zIndex: 1,
-                    }}
-                  />
-                )}
+      {phase === "voting" && (
+        <>
+          <h1 style={styles.title}>🚪 Onde está o Lian?</h1>
 
+          <p style={styles.subtitle}>
+            Vote no chat: <strong>!1</strong>,{" "}
+            <strong>!2</strong> ou <strong>!3</strong>
+          </p>
+
+          <div style={styles.timer}>
+            ⏱️ {timeLeft}s
+          </div>
+
+          <div style={styles.doors}>
+            {doors.map((image, index) => (
+              <div key={index} style={styles.door}>
                 <img
-                  src={doorImages[door - 1]}
-                  alt={`Porta ${door}`}
-                  style={{
-                    position: "relative",
-                    zIndex: showCharacter ? 2 : 1,
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                  }}
+                  src={image}
+                  alt={`Porta ${index + 1}`}
+                  style={styles.doorImage}
                 />
 
-                {phase === "voting" && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      zIndex: 3,
-                      bottom: 8,
-                      left: 0,
-                      right: 0,
-                      margin: "0 auto",
-                      width: "fit-content",
-                      minWidth: 42,
-                      padding: "5px 8px",
-                      borderRadius: 8,
-                      background: "#7d2ca3",
-                      border: "2px solid #f2c7ff",
-                      fontWeight: 800,
-                      fontSize: 18,
-                    }}
-                  >
-                    {percentage}%
-                  </div>
-                )}
-
-                {phase === "reveal" && isCorrect && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      zIndex: 4,
-                      top: 4,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      background: "#25a244",
-                      border: "2px solid white",
-                      borderRadius: 8,
-                      padding: "4px 8px",
-                      fontSize: 14,
-                      fontWeight: 800,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    LIAN!
-                  </div>
-                )}
-              </div>
-
-              <div
-                style={{
-                  marginTop: 4,
-                  fontSize: 16,
-                  fontWeight: 800,
-                  textShadow: "0 2px 4px #000",
-                }}
-              >
-                {door}
-              </div>
-
-              {phase !== "idle" && (
-                <div style={{ fontSize: 12, opacity: 0.9 }}>
-                  {voteCounts[door - 1]} voto(s)
+                <div style={styles.number}>
+                  PORTA {index + 1}
                 </div>
-              )}
-            </div>
-          );
-        })}
 
-        {phase === "idle" && (
-          <div
-            style={{
-              position: "absolute",
-              zIndex: 5,
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: "90%",
-              padding: "10px 12px",
-              boxSizing: "border-box",
-              borderRadius: 10,
-              background: "rgba(20, 10, 30, 0.88)",
-              border: "1px solid rgba(255,255,255,0.4)",
-              textAlign: "center",
-              fontWeight: 800,
-              fontSize: 15,
-              textShadow: "0 2px 4px #000",
-            }}
-          >
-            Widget está oculto na stream, digite !joguinho para iniciar
+                <div style={styles.vote}>
+                  {votes[index]} votos · {percentages[index]}%
+                </div>
+              </div>
+            ))}
           </div>
-        )}
-      </section>
+        </>
+      )}
 
-      {phase !== "idle" && (
-        <div
-          style={{
-            marginTop: 10,
-            textAlign: "center",
-            fontWeight: 800,
-            textShadow: "0 2px 4px #000",
-          }}
-        >
-          <div style={{ fontSize: 20 }}>
-            {phase === "voting" ? "VOTE NO CHAT!" : "ENCONTRAMOS O LIAN!"}
+      {phase === "reveal" && (
+        <>
+          <h1 style={styles.title}>🎉 Resultado!</h1>
+
+          <p style={styles.subtitle}>
+            O Lian estava atrás da porta {correctDoor}!
+          </p>
+
+          <div style={styles.doors}>
+            {doors.map((image, index) => {
+              const isCorrect = index + 1 === correctDoor;
+
+              return (
+                <div
+                  key={index}
+                  style={{
+                    ...styles.door,
+                    borderColor: isCorrect ? "#55ff88" : "#777",
+                    borderWidth: isCorrect ? 5 : 3,
+                    boxShadow: isCorrect
+                      ? "0 0 24px #55ff88"
+                      : "0 4px 18px #0008",
+                  }}
+                >
+                  <img
+                    src={image}
+                    alt={`Porta ${index + 1}`}
+                    style={styles.doorImage}
+                  />
+
+                  <div
+                    style={{
+                      ...styles.number,
+                      background: isCorrect ? "#176b3a" : "#292940",
+                    }}
+                  >
+                    {isCorrect ? "✅ " : ""}
+                    PORTA {index + 1}
+                  </div>
+
+                  <div style={styles.vote}>
+                    {votes[index]} votos · {percentages[index]}%
+                  </div>
+
+                  {isCorrect && (
+                    <img
+                      src={characterImage}
+                      alt="Lian"
+                      style={styles.character}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          <div style={{ marginTop: 5, fontSize: 16 }}>
-            {phase === "voting"
-              ? `Digite !1, !2 ou !3 — ${timeLeft}s`
-              : `Próxima rodada em ${timeLeft}s`}
-          </div>
-
-          <div style={{ marginTop: 4, fontSize: 13 }}>
-            Total de votos: {totalVotes}
-          </div>
-        </div>
+          <p style={styles.result}>
+            Próxima rodada em {timeLeft}s
+          </p>
+        </>
       )}
     </main>
   );
