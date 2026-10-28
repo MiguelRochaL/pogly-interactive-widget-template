@@ -16,6 +16,7 @@ type Phase = "idle" | "voting" | "reveal";
 function App() {
   const params = new URLSearchParams(window.location.search);
   const channel = params.get("channel");
+  const doorImage = params.get("doorImage") || DOOR_IMAGE_URL;
   const characterImage = params.get("characterImage") || DEFAULT_LIAN_IMAGE_URL;
   const isOverlay = params.get("overlay") === "true";
   const transparent = params.get("transparent") === "true";
@@ -168,7 +169,7 @@ function App() {
               }}
             >
               <img
-                src={DOOR_IMAGE_URL}
+                src={doorImage}
                 alt={`Porta ${door}`}
                 style={{
                   width: "100%",
