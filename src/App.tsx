@@ -274,7 +274,7 @@ function App() {
                     left: "50%",
                     transform: "translateX(-50%)",
                     objectFit: "contain",
-                    objectPosition: "bottom",
+                    objectPosition: "middle",
                     zIndex: 2,
                   }}
                 />
