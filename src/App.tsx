@@ -3,12 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import useTwitchChat, { type ChatPermissions } from "./useTwitchChat";
 
 const VOTING_SECONDS = 15;
+const REVEAL_SECONDS = 15;
 
-const DOOR_IMAGE_URL =
-  "https://f.feridinha.com/WbL3s.png";
-
-const DEFAULT_LIAN_IMAGE_URL =
-  "https://f.feridinha.com/mWRgw.png";
+const DOOR_IMAGE_URL = "https://f.feridinha.com/WbL3s.png";
+const DEFAULT_LIAN_IMAGE_URL = "https://f.feridinha.com/mWRgw.png";
 
 type Phase = "idle" | "voting" | "reveal";
 
@@ -22,6 +20,14 @@ function App() {
       ? Math.max(1, Math.floor(parsedVotingSeconds))
       : VOTING_SECONDS;
 
+  const parsedRevealSeconds = Number(params.get("reveal_seconds"));
+  const revealSeconds =
+    params.has("reveal_seconds") &&
+    Number.isFinite(parsedRevealSeconds) &&
+    parsedRevealSeconds >= 0
+      ? Math.floor(parsedRevealSeconds)
+      : REVEAL_SECONDS;
+
   const door1Image = params.get("door1_image") || DOOR_IMAGE_URL;
   const door2Image = params.get("door2_image") || DOOR_IMAGE_URL;
   const door3Image = params.get("door3_image") || DOOR_IMAGE_URL;
@@ -30,6 +36,7 @@ function App() {
 
   const isOverlay = params.get("overlay") === "true";
   const transparent = params.get("transparent") === "true";
+  const isPoglyEditor = params.get("pogly_editor") === "true";
 
   const [phase, setPhase] = useState<Phase>("idle");
   const phaseRef = useRef<Phase>("idle");
@@ -131,6 +138,18 @@ function App() {
     setPhase("reveal");
   }, [phase, seconds, isOverlay]);
 
+  useEffect(() => {
+    if (phase !== "reveal") return;
+
+    const timer = setTimeout(() => {
+      active.current = false;
+      phaseRef.current = "idle";
+      setPhase("idle");
+    }, revealSeconds * 1000);
+
+    return () => clearTimeout(timer);
+  }, [phase, revealSeconds]);
+
   if (!channel) {
     return (
       <div style={{ color: "white", padding: 20 }}>
@@ -144,6 +163,37 @@ function App() {
       <div style={{ color: "white", padding: 20 }}>
         Jogo das três portas — visualize no overlay da Twitch.
       </div>
+    );
+  }
+
+  if (!isPoglyEditor && phase === "idle") {
+    return (
+      <main
+        style={{
+          width: "100%",
+          minHeight: "100%",
+          padding: 20,
+          boxSizing: "border-box",
+          background: transparent ? "transparent" : "#17121f",
+          color: "white",
+          fontFamily: "Arial, sans-serif",
+          textAlign: "center",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <p
+          style={{
+            fontSize: 20,
+            fontWeight: "bold",
+            color: "#f5c6ff",
+            margin: 0,
+          }}
+        >
+          Widget está oculto na stream, digite !joguinho para iniciar
+        </p>
+      </main>
     );
   }
 
@@ -167,7 +217,7 @@ function App() {
 
       <p style={{ fontSize: 20, margin: "12px 0" }}>
         {phase === "idle"
-          ? ""
+          ? "Prévia do jogo"
           : phase === "voting"
           ? `Votação aberta! ${seconds}s restantes`
           : `O LIAN ESTAVA NA PORTA ${catDoor}!`}
@@ -250,9 +300,9 @@ function App() {
 
       <p style={{ fontSize: 18 }}>
         {phase === "idle"
-          ? ""
+          ? "Digite !joguinho para iniciar uma rodada."
           : phase === "voting"
-          ? "Digite !1, !2 ou !3 no chat!"
+          ? "Digite !1, !2 ou !3 no chat da Twitch. Cada pessoa vota uma vez!"
           : `${correctPercent}% acertaram! ${correctVotes} de ${totalVotes} votos foram na porta certa!`}
       </p>
     </main>
