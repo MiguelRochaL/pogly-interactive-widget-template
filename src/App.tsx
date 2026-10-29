@@ -37,6 +37,9 @@ function App() {
   const isOverlay = params.get("overlay") === "true";
   const transparent = params.get("transparent") === "true";
 
+  // ADIÇÃO: identifica quando o widget está no overlay real do Pogly.
+  const isPoglyOverlay = params.get("pogly_overlay") === "true";
+
   const [phase, setPhase] = useState<Phase>("idle");
   const phaseRef = useRef<Phase>("idle");
 
@@ -180,6 +183,12 @@ function App() {
         Jogo das três portas — visualize no overlay da Twitch.
       </div>
     );
+  }
+
+  // ADIÇÃO: esconde o jogo na live enquanto estiver parado.
+  // A prévia do editor continua funcionando normalmente.
+  if (isPoglyOverlay && phase === "idle") {
+    return null;
   }
 
   return (
