@@ -188,8 +188,18 @@ function App() {
   // ADIÇÃO: esconde o jogo na live enquanto estiver parado.
   // A prévia do editor continua funcionando normalmente.
   if (isPoglyOverlay && phase === "idle") {
-    return null;
-  }
+  return (
+    <main
+      style={{
+        width: "100%",
+        height: "100%",
+        background: "transparent",
+        margin: 0,
+        padding: 0,
+      }}
+    />
+  );
+}
 
   return (
     <main
